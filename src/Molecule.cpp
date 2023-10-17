@@ -10,7 +10,7 @@
 #include "DatasetConfig.h"
 #include "Mesh/Primitive/Sphere.h"
 
-Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene) {
+Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene), XyzFilePath(xyz_file_path) {
     std::ifstream xyz_file(xyz_file_path);
     if (!xyz_file.is_open()) {
         std::cerr << "Failed to open " << xyz_file_path << std::endl;
@@ -25,6 +25,10 @@ Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene)
     const uint num_atoms = std::stoi(line);
     // Second line is empty.
     std::getline(xyz_file, line);
+
+    AtomMesh.Generate();
+    AtomMesh.ClearInstances();
+    int atom_index = 0;
     while (std::getline(xyz_file, line)) {
         std::istringstream iss(line);
         std::string atom_name; // 'H', 'C', 'N', 'O', 'F'
@@ -32,38 +36,46 @@ Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene)
         iss >> atom_name >> position.x >> position.y >> position.z;
 
         const uint atom_type = DatasetConfig.AtomEncoder.at(atom_name);
-        // Hydrogen, Carbon, Nitrogen, Oxygen, Flourine
-        // area_dic = 1500 * radius_dic ** 2
-        // # areas_dic = sizes_dic * sizes_dic * 3.1416
-        // areas = area_dic[atom_type]
-        AtomMeshes.emplace_back(Sphere{DatasetConfig.RadiusForAtom[atom_type]});
-        AtomMeshes.back().SetPosition(position);
-        AtomMeshes.back().SetColor(DatasetConfig.ColorForAtom.at(atom_type));
+        AtomMesh.AddInstance();
+        AtomMesh.SetPosition(atom_index, position);
+        AtomMesh.SetScale(atom_index, DatasetConfig.RadiusForAtom[atom_type]);
+        AtomMesh.SetColor(atom_index, DatasetConfig.ColorForAtom.at(atom_type));
+        atom_index++;
     }
 
-    if (AtomMeshes.size() != num_atoms) {
-        std::cerr << "Expected " << num_atoms << " atoms, but found " << AtomMeshes.size() << std::endl;
+    if (AtomMesh.NumInstances() != num_atoms) {
+        std::cerr << "Expected " << num_atoms << " atoms, but found " << AtomMesh.NumInstances() << std::endl;
         return;
     }
 }
+Molecule::~Molecule() {
+    AtomMesh.Delete();
+}
 
 void Molecule::AddToScene() {
-    auto [bounds_min, bounds_max] = ComputeBounds();
-    for (auto &mesh : AtomMeshes) Scene->AddMesh(&mesh);
+    auto [bounds_min, bounds_max] = AtomMesh.ComputeBounds();
+    Scene->AddMesh(&AtomMesh);
     Scene->SetCameraDistance(glm::distance(bounds_min, bounds_max) * 2);
 }
 
 void Molecule::RemoveFromScene() {
-    for (auto &mesh : AtomMeshes) Scene->RemoveMesh(&mesh);
+    Scene->RemoveMesh(&AtomMesh);
 }
 
 MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : Scene(scene) {
     if (!fs::is_directory(xyz_files_path)) {
         Molecules.emplace_back(xyz_files_path, Scene);
     } else {
+        std::vector<fs::path> paths;
         for (const auto &entry : fs::directory_iterator(xyz_files_path)) {
             const auto &path = entry.path();
-            if (path.extension() == ".txt") Molecules.emplace_back(path, Scene);
+            if (path.extension() == ".txt") paths.push_back(path);
+        }
+        std::sort(paths.begin(), paths.end());
+
+        Molecules.reserve(paths.size());
+        for (const auto &path : paths) {
+            Molecules.emplace_back(path, Scene);
         }
 
         if (Molecules.empty()) {
@@ -72,7 +84,11 @@ MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : S
         }
     }
 
-    Molecules[0].AddToScene();
+    Molecules[MoleculeIndex].AddToScene();
+}
+
+MoleculeChain::~MoleculeChain() {
+    for (auto &molecule : Molecules) molecule.RemoveFromScene();
 }
 
 using namespace ImGui;
@@ -82,6 +98,11 @@ void MoleculeChain::RenderConfig() {
         TextUnformatted("No molecules loaded.");
         return;
     }
+
+    MoleculeIndex = std::clamp(MoleculeIndex, 0, int(Molecules.size() - 1));
+
+    std::string file_name = Molecules[MoleculeIndex].XyzFilePath.filename().string();
+    Text("Current molecule:\n\t%s", file_name.c_str());
 
     if (Molecules.size() > 1) {
         int new_molecule_index = MoleculeIndex;
