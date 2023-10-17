@@ -7,6 +7,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 
+#include "DatasetConfig.h"
 #include "Mesh/Primitive/Sphere.h"
 
 Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene) {
@@ -16,6 +17,8 @@ Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene)
         return;
     }
 
+    static const QM9WithH DatasetConfig;
+
     std::string line;
     // First line has the number of molecules.
     std::getline(xyz_file, line);
@@ -24,12 +27,18 @@ Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene)
     std::getline(xyz_file, line);
     while (std::getline(xyz_file, line)) {
         std::istringstream iss(line);
-        std::string atom_name;
+        std::string atom_name; // 'H', 'C', 'N', 'O', 'F'
         glm::vec3 position;
         iss >> atom_name >> position.x >> position.y >> position.z;
-        AtomMeshes.emplace_back(Sphere{0.5f});
+
+        const uint atom_type = DatasetConfig.AtomEncoder.at(atom_name);
+        // Hydrogen, Carbon, Nitrogen, Oxygen, Flourine
+        // area_dic = 1500 * radius_dic ** 2
+        // # areas_dic = sizes_dic * sizes_dic * 3.1416
+        // areas = area_dic[atom_type]
+        AtomMeshes.emplace_back(Sphere{DatasetConfig.RadiusForAtom[atom_type]});
         AtomMeshes.back().SetPosition(position);
-        // AtomMeshes.back().SetColor({1, 1, 1, 1});
+        AtomMeshes.back().SetColor(DatasetConfig.ColorForAtom.at(atom_type));
     }
 
     if (AtomMeshes.size() != num_atoms) {
