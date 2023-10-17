@@ -8,16 +8,17 @@
 namespace fs = std::filesystem;
 
 struct Molecule {
-    Molecule(const fs::path &xyz_file_path, ::Scene *);
+    Molecule(const fs::path &xyz_file_path);
     ~Molecule();
 
-    void AddToScene();
-    void RemoveFromScene();
+    float GetAtomRadius(int atom_index) const;
+    void SetAtomScale(float scale);
 
     Mesh AtomMesh{Sphere{}}; // Single sphere mesh with an instance per atom.
 
-    ::Scene *Scene;
     fs::path XyzFilePath;
+
+    std::vector<uint> AtomTypes;
 };
 
 struct MoleculeChain {
@@ -33,4 +34,5 @@ private:
     void SetMoleculeIndex(int index);
 
     int MoleculeIndex{0};
+    float AtomScale{1};
 };

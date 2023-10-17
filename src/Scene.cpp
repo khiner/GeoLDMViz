@@ -107,7 +107,7 @@ void Scene::Render() {
         SetCameraDistance(CameraDistance * (1.f - io.MouseWheel / 16.f));
     }
     const auto content_region = GetContentRegionAvail();
-    CameraProjection = glm::perspective(glm::radians(fov), content_region.x / content_region.y, 0.1f, 100.f);
+    CameraProjection = glm::perspective(glm::radians(fov), content_region.x / content_region.y, 0.1f, 1000.f);
 
     if (content_region.x <= 0 && content_region.y <= 0) return;
 
@@ -146,7 +146,7 @@ void Scene::Render() {
         ImGuizmo::SetDrawlist();
         ImGuizmo::SetOrthographic(false);
         ImGuizmo::SetRect(window_pos.x, window_pos.y + GetTextLineHeightWithSpacing(), content_region.x, content_region.y);
-    
+
         static const float ViewManipulateSize = 128;
         const auto view_manipulate_pos = window_pos + ImVec2{GetWindowContentRegionMax().x - ViewManipulateSize, GetWindowContentRegionMin().y};
         ImGuizmo::ViewManipulate(&CameraView[0][0], CameraDistance, view_manipulate_pos, {ViewManipulateSize, ViewManipulateSize}, 0);
@@ -165,7 +165,7 @@ void Scene::RenderConfig() {
             SliderFloat("FOV", &fov, 20.f, 110.f);
 
             float camera_distance = CameraDistance;
-            if (SliderFloat("Distance", &camera_distance, .1f, 10.f)) {
+            if (SliderFloat("Distance", &camera_distance, .1f, 200.f, "%.3f", ImGuiSliderFlags_Logarithmic)) {
                 SetCameraDistance(camera_distance);
             }
             EndTabItem();

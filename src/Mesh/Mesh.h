@@ -27,17 +27,12 @@ struct Mesh {
 
     std::pair<glm::vec3, glm::vec3> ComputeBounds() const {
         auto [min, max] = Triangles.ComputeBounds();
-        for (const auto &transform : Transforms) {
-            for (int i = 0; i < 3; i++) {
-                auto transformed = transform * glm::vec4(min, 1);
-                min[i] = std::min(min[i], transformed[i]);
-                max[i] = std::max(max[i], transformed[i]);
-            }
-            for (int i = 0; i < 3; i++) {
-                auto transformed = transform * glm::vec4(max, 1);
-                min[i] = std::min(min[i], transformed[i]);
-                max[i] = std::max(max[i], transformed[i]);
-            }
+        for (uint instance = 0; instance < NumInstances(); instance++) {
+            glm::vec3 position = GetPosition(instance);
+            min.x = std::min(min.x, position.x);
+            min.y = std::min(min.y, position.y);
+            max.x = std::max(max.x, position.x);
+            max.y = std::max(max.y, position.y);
         }
 
         return {min, max};
@@ -61,6 +56,8 @@ struct Mesh {
         transform[3][2] = position.z;
         Dirty = true;
     }
+    glm::vec3 GetPosition(uint instance) const { return glm::vec3(Transforms[instance][3]); }
+
     void SetPosition(const glm::vec3 &position) {
         for (uint instance = 0; instance < Transforms.size(); instance++) SetPosition(instance, position);
     }
@@ -74,6 +71,7 @@ struct Mesh {
     void SetScale(float scale) {
         for (uint instance = 0; instance < Transforms.size(); instance++) SetScale(instance, scale);
     }
+
     void SetTransform(uint instance, const glm::mat4 &new_transform) {
         Transforms[instance] = new_transform;
         Dirty = true;

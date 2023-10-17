@@ -10,14 +10,14 @@
 #include "DatasetConfig.h"
 #include "Mesh/Primitive/Sphere.h"
 
-Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene), XyzFilePath(xyz_file_path) {
+static const QM9WithH DatasetConfig;
+
+Molecule::Molecule(const fs::path &xyz_file_path) : XyzFilePath(xyz_file_path) {
     std::ifstream xyz_file(xyz_file_path);
     if (!xyz_file.is_open()) {
         std::cerr << "Failed to open " << xyz_file_path << std::endl;
         return;
     }
-
-    static const QM9WithH DatasetConfig;
 
     std::string line;
     // First line has the number of molecules.
@@ -28,6 +28,7 @@ Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene)
 
     AtomMesh.Generate();
     AtomMesh.ClearInstances();
+    AtomTypes.clear();
     int atom_index = 0;
     while (std::getline(xyz_file, line)) {
         std::istringstream iss(line);
@@ -36,9 +37,10 @@ Molecule::Molecule(const fs::path &xyz_file_path, ::Scene *scene) : Scene(scene)
         iss >> atom_name >> position.x >> position.y >> position.z;
 
         const uint atom_type = DatasetConfig.AtomEncoder.at(atom_name);
+        AtomTypes.emplace_back(atom_type);
         AtomMesh.AddInstance();
         AtomMesh.SetPosition(atom_index, position);
-        AtomMesh.SetScale(atom_index, DatasetConfig.RadiusForAtom[atom_type]);
+        AtomMesh.SetScale(atom_index, GetAtomRadius(atom_index));
         AtomMesh.SetColor(atom_index, DatasetConfig.ColorForAtom.at(atom_type));
         atom_index++;
     }
@@ -52,19 +54,17 @@ Molecule::~Molecule() {
     AtomMesh.Delete();
 }
 
-void Molecule::AddToScene() {
-    auto [bounds_min, bounds_max] = AtomMesh.ComputeBounds();
-    Scene->AddMesh(&AtomMesh);
-    Scene->SetCameraDistance(glm::distance(bounds_min, bounds_max) * 2);
-}
+float Molecule::GetAtomRadius(int atom_index) const { return DatasetConfig.RadiusForAtom[AtomTypes[atom_index]]; }
 
-void Molecule::RemoveFromScene() {
-    Scene->RemoveMesh(&AtomMesh);
+void Molecule::SetAtomScale(float scale) {
+    for (uint atom_index = 0; atom_index < AtomMesh.NumInstances(); atom_index++) {
+        AtomMesh.SetScale(atom_index, GetAtomRadius(atom_index) * scale);
+    }
 }
 
 MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : Scene(scene) {
     if (!fs::is_directory(xyz_files_path)) {
-        Molecules.emplace_back(xyz_files_path, Scene);
+        Molecules.emplace_back(xyz_files_path);
     } else {
         std::vector<fs::path> paths;
         for (const auto &entry : fs::directory_iterator(xyz_files_path)) {
@@ -75,7 +75,7 @@ MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : S
 
         Molecules.reserve(paths.size());
         for (const auto &path : paths) {
-            Molecules.emplace_back(path, Scene);
+            Molecules.emplace_back(path);
         }
 
         if (Molecules.empty()) {
@@ -84,11 +84,11 @@ MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : S
         }
     }
 
-    Molecules[MoleculeIndex].AddToScene();
+    SetMoleculeIndex(0);
 }
 
 MoleculeChain::~MoleculeChain() {
-    for (auto &molecule : Molecules) molecule.RemoveFromScene();
+    for (auto &molecule : Molecules) Scene->RemoveMesh(&molecule.AtomMesh);
 }
 
 using namespace ImGui;
@@ -104,6 +104,10 @@ void MoleculeChain::RenderConfig() {
     std::string file_name = Molecules[MoleculeIndex].XyzFilePath.filename().string();
     Text("Current molecule:\n\t%s", file_name.c_str());
 
+    if (SliderFloat("Atom scale", &AtomScale, .01f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic)) {
+        Molecules[MoleculeIndex].SetAtomScale(AtomScale);
+    }
+
     if (Molecules.size() > 1) {
         int new_molecule_index = MoleculeIndex;
         if (SliderInt("Molecule", &new_molecule_index, 0, Molecules.size() - 1)) {
@@ -115,7 +119,11 @@ void MoleculeChain::RenderConfig() {
 void MoleculeChain::SetMoleculeIndex(int index) {
     if (index < 0 || index >= int(Molecules.size())) return;
 
-    Molecules[MoleculeIndex].RemoveFromScene();
+    Scene->RemoveMesh(&Molecules[MoleculeIndex].AtomMesh);
     MoleculeIndex = index;
-    Molecules[MoleculeIndex].AddToScene();
+    auto &molecule = Molecules[MoleculeIndex];
+    molecule.SetAtomScale(AtomScale);
+    auto [bounds_min, bounds_max] = molecule.AtomMesh.ComputeBounds();
+    Scene->AddMesh(&molecule.AtomMesh);
+    Scene->SetCameraDistance(glm::distance(bounds_min, bounds_max) * 2);
 }
