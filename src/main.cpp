@@ -19,7 +19,7 @@
 static WindowsState Windows;
 
 static std::unique_ptr<Scene> MainScene;
-static std::unique_ptr<Molecule> CurrMolecule;
+static std::unique_ptr<MoleculeChain> CurrMoleculeChain;
 
 using namespace ImGui;
 
@@ -150,6 +150,7 @@ int main(int, char **) {
             auto scene_node_id = dockspace_id;
             auto controls_node_id = DockBuilderSplitNode(scene_node_id, ImGuiDir_Left, 0.4f, nullptr, &scene_node_id);
             DockBuilderDockWindow(Windows.SceneControls.Name, controls_node_id);
+            DockBuilderDockWindow(Windows.MoleculeChainControls.Name, controls_node_id);
             DockBuilderDockWindow(Windows.Scene.Name, scene_node_id);
         }
         if (BeginMainMenuBar()) {
@@ -161,8 +162,18 @@ int main(int, char **) {
                     };
                     nfdresult_t result = NFD_OpenDialog(&file_path, filter, 1, "res/");
                     if (result == NFD_OKAY) {
-                        CurrMolecule = std::make_unique<Molecule>(fs::path(file_path), MainScene.get());
+                        CurrMoleculeChain = std::make_unique<MoleculeChain>(fs::path(file_path), MainScene.get());
                         NFD_FreePath(file_path);
+                    } else if (result != NFD_CANCEL) {
+                        std::cerr << "Error: " << NFD_GetError() << '\n';
+                    }
+                }
+                if (MenuItem("Load Molecule Chain", nullptr)) {
+                    nfdchar_t *folder_path;
+                    nfdresult_t result = NFD_PickFolder(&folder_path, "res/");
+                    if (result == NFD_OKAY) {
+                        CurrMoleculeChain = std::make_unique<MoleculeChain>(fs::path(folder_path), MainScene.get());
+                        NFD_FreePath(folder_path);
                     } else if (result != NFD_CANCEL) {
                         std::cerr << "Error: " << NFD_GetError() << '\n';
                     }
@@ -171,6 +182,7 @@ int main(int, char **) {
             }
             if (BeginMenu("Windows")) {
                 MenuItem(Windows.SceneControls.Name, nullptr, &Windows.SceneControls.Visible);
+                MenuItem(Windows.MoleculeChainControls.Name, nullptr, &Windows.MoleculeChainControls.Visible);
                 MenuItem(Windows.Scene.Name, nullptr, &Windows.Scene.Visible);
                 MenuItem(Windows.ImGuiDemo.Name, nullptr, &Windows.ImGuiDemo.Visible);
                 EndMenu();
@@ -186,6 +198,15 @@ int main(int, char **) {
                 Text("No scene has been loaded.");
             } else {
                 MainScene->RenderConfig();
+            }
+            End();
+        }
+        if (Windows.MoleculeChainControls.Visible) {
+            Begin(Windows.MoleculeChainControls.Name, &Windows.MoleculeChainControls.Visible);
+            if (CurrMoleculeChain == nullptr) {
+                Text("No molecule chain has been loaded.");
+            } else {
+                CurrMoleculeChain->RenderConfig();
             }
             End();
         }

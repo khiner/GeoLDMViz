@@ -27,7 +27,25 @@ struct Molecule {
         return {min, max};
     }
 
+    void AddToScene();
+    void RemoveFromScene();
+
     std::vector<Mesh> AtomMeshes; // Sphere mesh for each atom.
 
     ::Scene *Scene;
+};
+
+struct MoleculeChain {
+    MoleculeChain(const fs::path &xyz_files_path, ::Scene *);
+
+    void RenderConfig();
+
+    std::vector<Molecule> Molecules;
+    ::Scene *Scene;
+
+
+private:
+    void SetMoleculeIndex(int index);
+
+    int MoleculeIndex{0};
 };

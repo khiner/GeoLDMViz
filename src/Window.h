@@ -8,6 +8,7 @@ struct Window {
 struct WindowsState {
     Window SceneControls{"Scene controls"};
     Window Scene{"Scene"};
+    Window MoleculeChainControls{"Molecule chain"};
     // By default, the demo window is docked, but not visible.
     Window ImGuiDemo{"Dear ImGui demo", false};
 };

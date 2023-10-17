@@ -32,7 +32,7 @@ Scene::Scene() {
       We consider the "subject" to be the origin.
     */
     for (int _ = 0; _ < 3; _++) Lights.push_back({});
-    static const float dist_factor = 2.0f;
+    static const float dist_factor = 8.0f;
 
     // Key light.
     float key_light__angle = 1.f / 4.f; // Multiplied by pi.
