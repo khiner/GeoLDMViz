@@ -2,6 +2,8 @@
 
 #include "Geometry.h"
 
+#include <glm/gtx/quaternion.hpp>
+
 struct GLVertexArray {
     void Generate() { glGenVertexArrays(1, &Id); }
     void Delete() const { glDeleteVertexArrays(1, &Id); }
@@ -68,8 +70,20 @@ struct Mesh {
         transform[2][2] = scale;
         Dirty = true;
     }
+    void SetScale(uint instance, const glm::vec3 &scale) {
+        auto &transform = Transforms[instance];
+        transform[0][0] = scale.x;
+        transform[1][1] = scale.y;
+        transform[2][2] = scale.z;
+        Dirty = true;
+    }
     void SetScale(float scale) {
         for (uint instance = 0; instance < Transforms.size(); instance++) SetScale(instance, scale);
+    }
+
+    void SetRotation(uint instance, const glm::quat &rotation) {
+        Transforms[instance] = glm::mat4_cast(rotation);
+        Dirty = true;
     }
 
     void SetTransform(uint instance, const glm::mat4 &new_transform) {

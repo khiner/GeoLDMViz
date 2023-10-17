@@ -3,8 +3,6 @@
 #include <format>
 #include <string>
 
-#include <glm/gtx/quaternion.hpp>
-
 #include "GLCanvas.h"
 #include "Mesh/Primitive/Sphere.h"
 #include "Shader/ShaderProgram.h"

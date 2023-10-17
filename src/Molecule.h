@@ -2,7 +2,9 @@
 
 #include <filesystem>
 
+#include "Mesh/Primitive/Cylinder.h"
 #include "Mesh/Primitive/Sphere.h"
+
 #include "Scene.h"
 
 namespace fs = std::filesystem;
@@ -15,6 +17,7 @@ struct Molecule {
     void SetAtomScale(float scale);
 
     Mesh AtomMesh{Sphere{}}; // Single sphere mesh with an instance per atom.
+    Mesh BondMesh{Cylinder{}}; // Single cylinder mesh with an instance per bond.
 
     fs::path XyzFilePath;
 
@@ -35,4 +38,8 @@ private:
 
     int MoleculeIndex{0};
     float AtomScale{1};
+    bool ShowBonds{true};
+    bool AnimateChain{false};
+    float AnimationSpeed{0.002};
+    float AnimateTime{0};
 };
