@@ -13,7 +13,7 @@ struct Molecule {
     Molecule(const fs::path &xyz_file_path);
     ~Molecule();
 
-    float GetAtomRadius(int atom_index) const;
+    float GetAtomRadius(uint atom_index) const;
     void SetAtomScale(float scale);
     void SetBondRadius(float scale);
 

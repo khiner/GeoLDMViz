@@ -59,18 +59,17 @@ Molecule::Molecule(const fs::path &xyz_file_path) : XyzFilePath(xyz_file_path) {
             const auto p1 = AtomMesh.GetPosition(i);
             const auto p2 = AtomMesh.GetPosition(j);
             const auto dist = glm::distance(p1, p2);
-            const auto atom1 = DatasetConfig.AtomDecoder[AtomTypes[i]];
-            const auto atom2 = DatasetConfig.AtomDecoder[AtomTypes[j]];
-            const auto s = std::minmax(AtomTypes[i], AtomTypes[j]);
-            const auto pair = std::make_pair(DatasetConfig.AtomDecoder.at(s.first), DatasetConfig.AtomDecoder.at(s.second));
-            const auto draw_edge_int = GetBondOrder(atom1, atom2, dist);
-            if (draw_edge_int > 0) {
+            const auto bond_order = GetBondOrder(
+                DatasetConfig.AtomDecoder[AtomTypes[i]],
+                DatasetConfig.AtomDecoder[AtomTypes[j]],
+                dist
+            );
+            if (bond_order > 0) {
                 const auto midpoint = (p1 + p2) / 2.0f;
                 const auto direction = glm::normalize(p2 - p1);
-                const auto distance = glm::distance(p1, p2);
                 // `quatLookAt` assumes the forward direction is -Z, so we need to rotate the result by 90 degrees.
                 const glm::quat rotation = glm::quatLookAt(direction, Up) * glm::angleAxis(float(M_PI / 2), glm::vec3{1, 0, 0});
-                const glm::mat4 transform = glm::scale(glm::translate(Identity, midpoint) * glm::mat4_cast(rotation), {1, distance, 1});
+                const glm::mat4 transform = glm::scale(glm::translate(Identity, midpoint) * glm::mat4_cast(rotation), {1, dist, 1});
                 BondMesh.AddInstance();
                 BondMesh.SetTransform(bond_index, transform);
                 bond_index++;
@@ -84,7 +83,7 @@ Molecule::~Molecule() {
     BondMesh.Delete();
 }
 
-float Molecule::GetAtomRadius(int atom_index) const { return DatasetConfig.RadiusForAtom[AtomTypes[atom_index]]; }
+float Molecule::GetAtomRadius(uint atom_index) const { return DatasetConfig.RadiusForAtom[AtomTypes[atom_index]]; }
 
 void Molecule::SetAtomScale(float scale) {
     for (uint atom_index = 0; atom_index < AtomMesh.NumInstances(); atom_index++) {
@@ -114,7 +113,7 @@ MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : S
             const auto &path = entry.path();
             if (path.extension() == ".txt") paths.push_back(path);
         }
-        std::sort(paths.begin(), paths.end());
+        std::sort(paths.begin(), paths.end()); // Alphabetical order.
 
         // `Molecule`'s move semantics don't currently work with OpenGL state well, so use `reserve` to avoid reallocations.
         Molecules.reserve(paths.size());
