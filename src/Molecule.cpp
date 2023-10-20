@@ -6,6 +6,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include "DatasetConfig.h"
 #include "Mesh/Primitive/Sphere.h"
@@ -54,7 +55,7 @@ Molecule::Molecule(const fs::path &xyz_file_path) : XyzFilePath(xyz_file_path) {
     BondMesh.ClearInstances();
     uint bond_index = 0;
     for (uint i = 0; i < num_atoms; i++) {
-        for (uint j = 0; j < num_atoms; j++) {
+        for (uint j = 0; j < i; j++) {
             const auto p1 = AtomMesh.GetPosition(i);
             const auto p2 = AtomMesh.GetPosition(j);
             const auto dist = glm::distance(p1, p2);
@@ -63,31 +64,15 @@ Molecule::Molecule(const fs::path &xyz_file_path) : XyzFilePath(xyz_file_path) {
             const auto s = std::minmax(AtomTypes[i], AtomTypes[j]);
             const auto pair = std::make_pair(DatasetConfig.AtomDecoder.at(s.first), DatasetConfig.AtomDecoder.at(s.second));
             const auto draw_edge_int = GetBondOrder(atom1, atom2, dist);
-            const float line_width = (3.f - 2.f) * 2 * 2;
-            const bool draw_edge = draw_edge_int > 0;
-            if (draw_edge) {
-                const float linewidth_factor = draw_edge_int == 4 ? 1.5f : 1.f;
-                BondMesh.AddInstance();
+            if (draw_edge_int > 0) {
                 const auto midpoint = (p1 + p2) / 2.0f;
                 const auto direction = glm::normalize(p2 - p1);
                 const auto distance = glm::distance(p1, p2);
-
-                // todo not quite right. Rotation is wrong.
-                const glm::mat4 translation = glm::translate(glm::mat4(1.0f), midpoint);
-                const glm::quat rotation = glm::quatLookAt(direction, Up);
-                const glm::mat4 scale = glm::scale(Identity, glm::vec3(1.0f, distance, 1.0f));
-
-                // const glm::mat4 translation = glm::translate(glm::mat4(1.0f), midpoint);
-                // const glm::mat4 scale = glm::scale(Identity, glm::vec3(1.0f, distance, 1.0f));
-                // const glm::vec3 old_up = {0.0f, 1.0f, 0.0f}; // The original 'up' direction of the cylinder
-                // const glm::vec3 axis = glm::cross(old_up, direction); // Compute the axis of rotation
-                // const float angle = glm::acos(glm::dot(old_up, direction)); // Compute the angle of rotation
-                // const glm::quat rotation = glm::angleAxis(angle, axis); // Create the quaternion
-
-                // Now use this quaternion in your transformation
-                const glm::mat4 bond_transform = translation * glm::mat4_cast(rotation) * scale;
-                BondMesh.SetTransform(bond_index, bond_transform);
-                BondMesh.SetColor(bond_index, {1, 1, 1, 1});
+                // `quatLookAt` assumes the forward direction is -Z, so we need to rotate the result by 90 degrees.
+                const glm::quat rotation = glm::quatLookAt(direction, Up) * glm::angleAxis(float(M_PI / 2), glm::vec3{1, 0, 0});
+                const glm::mat4 transform = glm::scale(glm::translate(Identity, midpoint) * glm::mat4_cast(rotation), {1, distance, 1});
+                BondMesh.AddInstance();
+                BondMesh.SetTransform(bond_index, transform);
                 bond_index++;
             }
         }
@@ -107,6 +92,19 @@ void Molecule::SetAtomScale(float scale) {
     }
 }
 
+void Molecule::SetBondRadius(float radius) {
+    for (uint bond_index = 0; bond_index < BondMesh.NumInstances(); bond_index++) {
+        // Each bond may have arbitrary translation, rotation and y-scaling applied.
+        glm::vec3 scale, translation, skew;
+        glm::vec4 perspective;
+        glm::quat rotation;
+        if (glm::decompose(BondMesh.GetTransform(bond_index), scale, rotation, translation, skew, perspective)) {
+            scale.x = scale.z = radius;
+            BondMesh.SetTransform(bond_index, glm::scale(glm::translate(Identity, translation) * glm::mat4_cast(rotation), scale));
+        }
+    }
+}
+
 MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : Scene(scene) {
     if (!fs::is_directory(xyz_files_path)) {
         Molecules.emplace_back(xyz_files_path);
@@ -118,10 +116,9 @@ MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : S
         }
         std::sort(paths.begin(), paths.end());
 
+        // `Molecule`'s move semantics don't currently work with OpenGL state well, so use `reserve` to avoid reallocations.
         Molecules.reserve(paths.size());
-        for (const auto &path : paths) {
-            Molecules.emplace_back(path);
-        }
+        for (const auto &path : paths) Molecules.emplace_back(path);
 
         if (Molecules.empty()) {
             std::cerr << "No .txt files found in directory: " << xyz_files_path << std::endl;
@@ -129,7 +126,7 @@ MoleculeChain::MoleculeChain(const fs::path &xyz_files_path, ::Scene *scene) : S
         }
     }
 
-    SetMoleculeIndex(0);
+    SetMoleculeIndex(Molecules.size() - 1); // Default to the final molecule in the chain.
 }
 
 MoleculeChain::~MoleculeChain() {
@@ -152,13 +149,18 @@ void MoleculeChain::RenderConfig() {
     std::string file_name = Molecules[MoleculeIndex].XyzFilePath.filename().string();
     Text("Current molecule:\n\t%s", file_name.c_str());
 
-    Checkbox("Show bonds", &ShowBonds);
-    Checkbox("Animate chain", &AnimateChain);
-    SliderFloat("Animation speed", &AnimationSpeed, 0.00001f, 0.01f);
-
-    if (SliderFloat("Atom scale", &AtomScale, .01f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic)) {
+    if (Checkbox("Show bonds", &ShowBonds)) SetMoleculeIndex(MoleculeIndex);
+    if (!ShowBonds) BeginDisabled();
+    if (SliderFloat("Bond radius", &BondRadius, .01f, 4.f, "%.3f", ImGuiSliderFlags_Logarithmic)) {
+        Molecules[MoleculeIndex].SetBondRadius(BondRadius);
+    }
+    if (!ShowBonds) EndDisabled();
+    if (SliderFloat("Atom scale", &AtomScale, .01f, 4.f, "%.3f", ImGuiSliderFlags_Logarithmic)) {
         Molecules[MoleculeIndex].SetAtomScale(AtomScale);
     }
+
+    Checkbox("Animate chain", &AnimateChain);
+    SliderFloat("Animation speed", &AnimationSpeed, 0.00001f, 0.01f);
 
     if (Molecules.size() > 1) {
         int new_molecule_index = MoleculeIndex;
@@ -183,8 +185,9 @@ void MoleculeChain::SetMoleculeIndex(int index) {
     MoleculeIndex = index;
     auto &molecule = Molecules[MoleculeIndex];
     molecule.SetAtomScale(AtomScale);
+    molecule.SetBondRadius(BondRadius);
     auto [bounds_min, bounds_max] = molecule.AtomMesh.ComputeBounds();
     Scene->AddMesh(&molecule.AtomMesh);
-    // Scene->AddMesh(&molecule.BondMesh);
+    if (ShowBonds) Scene->AddMesh(&molecule.BondMesh);
     Scene->SetCameraDistance(glm::distance(bounds_min, bounds_max) * 2);
 }

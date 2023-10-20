@@ -17,7 +17,7 @@ struct Mesh {
     Mesh(Geometry &&triangles) : Triangles(std::move(triangles)) {}
     virtual ~Mesh() {}
 
-    const glm::mat4 &GetTransform() const { return Transforms[0]; }
+    const glm::mat4 &GetTransform(uint instance = 0) const { return Transforms[instance]; }
 
     void Generate();
     void Delete() const;
@@ -63,6 +63,7 @@ struct Mesh {
     void SetPosition(const glm::vec3 &position) {
         for (uint instance = 0; instance < Transforms.size(); instance++) SetPosition(instance, position);
     }
+    glm::vec3 GetScale(uint instance) const { return glm::vec3(Transforms[instance][0]); }
     void SetScale(uint instance, float scale) {
         auto &transform = Transforms[instance];
         transform[0][0] = scale;

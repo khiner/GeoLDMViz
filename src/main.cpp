@@ -119,6 +119,7 @@ int main(int, char **) {
     // IM_ASSERT(font != NULL);
 
     if (!MainScene) MainScene = std::make_unique<Scene>();
+    CurrMoleculeChain = std::make_unique<MoleculeChain>(fs::path("./res") / "chain_0", MainScene.get());
 
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -192,21 +193,21 @@ int main(int, char **) {
 
         if (Windows.ImGuiDemo.Visible) ShowDemoWindow(&Windows.ImGuiDemo.Visible);
 
-        if (Windows.SceneControls.Visible) {
-            Begin(Windows.SceneControls.Name, &Windows.SceneControls.Visible);
-            if (MainScene == nullptr) {
-                Text("No scene has been loaded.");
-            } else {
-                MainScene->RenderConfig();
-            }
-            End();
-        }
         if (Windows.MoleculeChainControls.Visible) {
             Begin(Windows.MoleculeChainControls.Name, &Windows.MoleculeChainControls.Visible);
             if (CurrMoleculeChain == nullptr) {
                 Text("No molecule chain has been loaded.");
             } else {
                 CurrMoleculeChain->RenderConfig();
+            }
+            End();
+        }
+        if (Windows.SceneControls.Visible) {
+            Begin(Windows.SceneControls.Name, &Windows.SceneControls.Visible);
+            if (MainScene == nullptr) {
+                Text("No scene has been loaded.");
+            } else {
+                MainScene->RenderConfig();
             }
             End();
         }

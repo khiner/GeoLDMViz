@@ -48,8 +48,8 @@ Scene::Scene() {
       This would put the camera `eye` at position (0, 0, camDistance) in world space, pointing at the origin.
       We offset the camera angle slightly from this point along spherical coordinates to make the initial view more interesting.
     */
-    static const float x_angle = M_PI * 0.1; // Elevation angle (0° is in the X-Z plane, positive angles rotate upwards)
-    static const float y_angle = M_PI * 0.4; // Azimuth angle (0° is along +X axis, positive angles rotate counterclockwise)
+    static const float x_angle = M_PI * -0.1; // Elevation angle (0° is in the X-Z plane, positive angles rotate upwards)
+    static const float y_angle = M_PI * 0.6; // Azimuth angle (0° is along +X axis, positive angles rotate counterclockwise)
     static const glm::vec3 eye(cosf(y_angle) * cosf(x_angle), sinf(x_angle), sinf(y_angle) * cosf(x_angle));
     CameraView = glm::lookAt(eye * CameraDistance, Origin, Up);
 
