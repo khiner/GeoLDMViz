@@ -125,7 +125,7 @@ void Scene::Render() {
     glUniform4fv(CurrShaderProgram->GetUniform(un::DiffuseColor), 1, &DiffusionColor[0]);
     glUniform4fv(CurrShaderProgram->GetUniform(un::SpecularColor), 1, &SpecularColor[0]);
     glUniform1f(CurrShaderProgram->GetUniform(un::ShininessFactor), Shininess);
-    glUniform1i(CurrShaderProgram->GetUniform(un::FlatShading), UseFlatShading ? 1 : 0);
+    glUniform1i(CurrShaderProgram->GetUniform(un::FlatShading), FlatShading ? 1 : 0);
 
     // auto start_time = std::chrono::high_resolution_clock::now();
     for (const auto *mesh : Meshes) mesh->Render();
@@ -154,7 +154,7 @@ void Scene::Render() {
 void Scene::RenderConfig() {
     if (BeginTabBar("SceneConfig")) {
         if (BeginTabItem("Geometries")) {
-            Checkbox("Flat shading", &UseFlatShading);
+            Checkbox("Flat shading", &FlatShading);
             EndTabItem();
         }
         if (BeginTabItem("Camera")) {

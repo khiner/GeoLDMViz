@@ -39,9 +39,9 @@ struct Scene {
     glm::vec4 AmbientColor = {0.4, 0.4, 0.4, 1};
     // todo Diffusion and specular colors are object properties, not scene properties.
     glm::vec4 DiffusionColor = {0.5, 0.5, 0.5, 1};
-    glm::vec4 SpecularColor = {0.5, 0.5, 0.5, 1};
+    glm::vec4 SpecularColor = {0.0, 0.0, 0.0, 1}; // No specular by default.
     float Shininess = 10;
-    bool CustomColors = false, UseFlatShading = true;
+    bool CustomColors = false, FlatShading = false;
 
     bool ShowCameraGizmo = true;
 

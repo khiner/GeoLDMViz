@@ -38,7 +38,7 @@ private:
     void SetMoleculeIndex(int index);
 
     int MoleculeIndex{0};
-    float AtomScale{0.5}, BondRadius{1};
+    float AtomScale{0.5}, BondRadius{1.2};
     bool ShowBonds{true};
     bool AnimateChain{false};
     float AnimationSpeed{0.002};
