@@ -1,10 +1,10 @@
 # GeoLDMViz
 
-3D visualizer app for inspecting generated molecules &amp; diffusion chain output from [GeoLDM](https://github.com/MinkaiXu/GeoLDM)
+3D visualizer app for inspecting generated molecules &amp; diffusion chain output from [GeoLDM](https://github.com/MinkaiXu/GeoLDM).
+* [Demo video](https://youtu.be/W7b-lYCAOLQ)
+* [Blog post](https://karlhiner.com/geoldm_viz)
 
 ![Animation of diffusion-generated molecule chain](chain_animate.gif)
-
-Demo video: https://youtu.be/W7b-lYCAOLQ
 
 ## Build app
 
